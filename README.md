@@ -1,2 +1,2 @@
-# CG_prog2
-render triangle and ellipsoid using webgl
+# prog2
+helper files for the intro cg class's second programming assignment
