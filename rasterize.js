@@ -22,6 +22,16 @@ var vertexPositionAttrib; // where to put position for vertex shader
 var viewMatrix = mat4.create();
 var perspMatrix = mat4.create();
 
+//color Buffer:
+var diffuseBuffer;
+var ambientBuffer;
+var specularBuffer;
+var normalBuffer;
+
+//color position attribute
+var diffusePositionAttrib;
+var ambientPositionAttrib;
+var specularPositionAttrib;
 
 //uniform variables
 var uniformvMatrix;
@@ -71,7 +81,7 @@ function initMatrices(){
     mat4.lookAt(viewMatrix, eye, center, ViewUp);
 
     //doubt 11111 perspective matrix
-    mat4.perspective(perspMatrix, Math.PI/4, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+    mat4.perspective(perspMatrix, Math.PI/2, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
 }
 
 // set up the webGL environment
@@ -118,9 +128,9 @@ function loadTriangles() {
         var triToAdd = vec3.create(); // tri indices to add to the index array
 
         //color of vertices
-        var colorAmbientArray = [];
-        var colorDiffuseArray = [];
-        var colorSpecularArray = [];
+        var ambientArray = [];
+        var diffuseArray = [];
+        var specularArray = [];
 
         
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
@@ -137,6 +147,20 @@ function loadTriangles() {
                 vec3.add(triToAdd,indexOffset,inputTriangles[whichSet].triangles[whichSetTri]);
                 indexArray.push(triToAdd[0],triToAdd[1],triToAdd[2]);
             } // end for triangles in set
+
+            //setup vertex color
+            for(whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++){
+                var diff_col= inputTriangles[whichSet].material.diffuse;
+                var ambi_col= inputTriangles[whichSet].material.ambient;
+                var spec_col= inputTriangles[whichSet].material.specular;
+
+                diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
+               //  diffuseArray.push(1, 0, 0, 1.0);
+
+                ambientArray.push(ambi_col[0], ambi_col[1], ambi_col[2], 1.0);
+                specularArray.push(spec_col[0], spec_col[1], spec_col[2], 1.0); 
+            }
+
 
             vtxBufferSize += inputTriangles[whichSet].vertices.length; // total number of vertices
             triBufferSize += inputTriangles[whichSet].triangles.length; // total number of tris
@@ -158,6 +182,12 @@ function loadTriangles() {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffer); // activate that buffer
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
 
+        //send diffuse buffer to webgl
+        diffuseBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(diffuseArray), gl.STATIC_DRAW);
+        console.log("diffuseArray: ****" + diffuseArray);
+
     } // end if triangles found
 } // end load triangles
 
@@ -166,20 +196,29 @@ function setupShaders() {
     
     // define fragment shader in essl using es6 template strings
     var fShaderCode = `
+        precision mediump float;
+        varying vec4 finalcolor;
         void main(void) {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // all fragments are white
+            gl_FragColor = finalcolor; // all fragments are white
         }
     `;
     
     // define vertex shader in essl using es6 template strings
     var vShaderCode = `
         attribute vec3 vertexPosition;
+        attribute vec4 diffuseAttribute;
+        attribute vec4 ambientAttribute;
+        attribute vec4 specularAttribute;
+
+        varying vec4 finalcolor;
 
         uniform mat4 uniformViewMatrix;
         uniform mat4 uniformPerspMatrix;
 
         void main(void) {
             gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
+
+            finalcolor = diffuseAttribute;
         }
     `;
     
@@ -217,6 +256,9 @@ function setupShaders() {
                 uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
                 uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
 
+                diffusePositionAttrib = gl.getAttribLocation(shaderProgram, "diffuseAttribute");
+                gl.enableVertexAttribArray(diffusePositionAttrib);
+
                 console.log("uniformvMatrix ********" + uniformvMatrix);
                 console.log("uniformpMatrix ********" + uniformpMatrix);
 
@@ -237,11 +279,15 @@ function renderTriangles() {
     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
     gl.vertexAttribPointer(vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
 
-
     //set uniform variables
     gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
     gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
 
+    //diffuse color
+    gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
+    gl.vertexAttribPointer(diffusePositionAttrib, 4, gl.FLOAT, false, 0, 0);
+
+    console.log("diffuse buffer: " + diffuseBuffer);
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
     gl.drawElements(gl.TRIANGLES,triBufferSize,gl.UNSIGNED_SHORT,0); // render
