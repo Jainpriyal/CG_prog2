@@ -5,10 +5,19 @@
     <title>Prog 2: Rasterization Shell</title>
 
     <script type="text/javascript" src="gl-matrix-min.js"></script>
-    <script type="text/javascript" src="rasterize.js"></script>
+	    <script type="text/javascript" src="rasterize.js"></script>
   </head>
 
   <body onload="main();">
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
+    <p>
+    <label><b>Canvas Dimensions </b></label>
+    <br>
+    <label>Width </label> 
+    <input type="text" value="512" style="width:35px" id="canvas_width">
+    <label>Height </label> 
+    <input type="text" value="512" style="width:35px" id="canvas_height">
+    <br>
+    </p>
   </body>
 </html>

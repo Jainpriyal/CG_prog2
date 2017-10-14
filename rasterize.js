@@ -1,5 +1,5 @@
 /* GLOBAL CONSTANTS AND VARIABLES */
-
+//@author: Priyal
 /* assignment specific globals */
 const WIN_Z = 0;  // default graphics window z coord in world space
 const WIN_LEFT = 0; const WIN_RIGHT = 1;  // default left and right x coords in world space
@@ -7,6 +7,9 @@ const WIN_BOTTOM = 0; const WIN_TOP = 1;  // default top and bottom y coords in 
 const INPUT_TRIANGLES_URL = "https://ncsucgclass.github.io/prog2/triangles.json"; // triangles file loc
 const INPUT_SPHERES_URL = "https://ncsucgclass.github.io/prog2/ellipsoids.json"; // ellipsoids file loc
 var Eye = new vec4.fromValues(0.5,0.5,-0.5,1.0); // default eye position in world space
+var ViewUp = new vec3.fromValues(0,1,0); // view up vector
+var LookAt = new vec3.fromValues(0,0,1); //look at vector
+
 
 /* webgl globals */
 var gl = null; // the all powerful gl object. It's all here folks!
@@ -15,7 +18,14 @@ var triangleBuffer; // this contains indices into vertexBuffer in triples
 var triBufferSize = 0; // the number of indices in the triangle buffer
 var vertexPositionAttrib; // where to put position for vertex shader
 
+/* matrices required */
+var viewMatrix = mat4.create();
+var perspMatrix = mat4.create();
 
+
+//uniform variables
+var uniformvMatrix;
+var uniformpMatrix;
 // ASSIGNMENT HELPER FUNCTIONS
 
 // get the JSON file from the passed URL
@@ -45,17 +55,42 @@ function getJSONFile(url,descr) {
     }
 } // end get json file
 
+//function to initialize view and projection matrices
+function initMatrices(){
+    //view matrix
+    /*Determined by:
+    1. The eye, or the position of the viewer;
+    2. The center, or the point where we the camera aims;
+    3. The up, which defines the direction of the up for the viewer.
+    */
+    //var viewMatrix = mat4.create();
+    var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
+    console.log("lookat: " + LookAt[0]);
+    //11111 doubt verify center position
+    var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
+    mat4.lookAt(viewMatrix, eye, center, ViewUp);
+
+    //doubt 11111 perspective matrix
+    mat4.perspective(perspMatrix, Math.PI/4, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+}
+
 // set up the webGL environment
 function setupWebGL() {
 
     // Get the canvas and context
     var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
+    canvas.width = document.getElementById("canvas_width").value;
+    canvas.height = document.getElementById("canvas_height").value;
+
     gl = canvas.getContext("webgl"); // get a webgl object from it
+    gl.viewportWidth = canvas.width;
+    gl.viewportHeight = canvas.height;
     
     try {
       if (gl == null) {
         throw "unable to create gl context -- is your browser gl ready?";
       } else {
+        gl.viewport(0,0,canvas.width,canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0); // use black when we clear the frame buffer
         gl.clearDepth(1.0); // use max when we clear the depth buffer
         gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering)
@@ -81,6 +116,12 @@ function loadTriangles() {
         var vtxToAdd = []; // vtx coords to add to the coord array
         var indexOffset = vec3.create(); // the index offset for the current set
         var triToAdd = vec3.create(); // tri indices to add to the index array
+
+        //color of vertices
+        var colorAmbientArray = [];
+        var colorDiffuseArray = [];
+        var colorSpecularArray = [];
+
         
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
@@ -134,8 +175,11 @@ function setupShaders() {
     var vShaderCode = `
         attribute vec3 vertexPosition;
 
+        uniform mat4 uniformViewMatrix;
+        uniform mat4 uniformPerspMatrix;
+
         void main(void) {
-            gl_Position = vec4(vertexPosition, 1.0); // use the untransformed position
+            gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
         }
     `;
     
@@ -169,6 +213,13 @@ function setupShaders() {
                 vertexPositionAttrib = // get pointer to vertex shader input
                     gl.getAttribLocation(shaderProgram, "vertexPosition"); 
                 gl.enableVertexAttribArray(vertexPositionAttrib); // input to shader from array
+
+                uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
+                uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
+
+                console.log("uniformvMatrix ********" + uniformvMatrix);
+                console.log("uniformpMatrix ********" + uniformpMatrix);
+
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -186,6 +237,11 @@ function renderTriangles() {
     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
     gl.vertexAttribPointer(vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
 
+
+    //set uniform variables
+    gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
+    gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
+
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
     gl.drawElements(gl.TRIANGLES,triBufferSize,gl.UNSIGNED_SHORT,0); // render
@@ -197,6 +253,7 @@ function renderTriangles() {
 function main() {
   
   setupWebGL(); // set up the webGL environment
+  initMatrices();
   loadTriangles(); // load in the triangles from tri file
   setupShaders(); // setup the webGL shaders
   renderTriangles(); // draw the triangles using webGL
