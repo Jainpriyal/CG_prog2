@@ -310,8 +310,11 @@ function setupShaders() {
     var vShaderCode = `
         attribute vec3 vertexPosition;
 
+        uniform mat4 uniformViewMatrix;
+        uniform mat4 uniformPerspMatrix;
+
         void main(void) {
-            gl_Position = vec4(vertexPosition, 1.0); // use the untransformed position
+            gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
         }
     `;
     
@@ -345,6 +348,10 @@ function setupShaders() {
                 vertexPositionAttrib = // get pointer to vertex shader input
                     gl.getAttribLocation(shaderProgram, "vertexPosition"); 
                 gl.enableVertexAttribArray(vertexPositionAttrib); // input to shader from array
+
+                uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
+                uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
+
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -361,6 +368,12 @@ function renderTriangles() {
     // vertex buffer: activate and feed into vertex shader
     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
     gl.vertexAttribPointer(vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
+
+    //set uniform variables: 
+    // //view matrix, perspective matrix, light, eye, light_col
+    gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
+    gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
+
 
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
@@ -380,12 +393,31 @@ function renderTriangles() {
 
 } // end render triangles
 
+//function to initialize view and projection matrices
+function initMatrices(){
+    //view matrix
+    /*Determined by:
+    1. The eye, or the position of the viewer;
+    2. The center, or the point where we the camera aims;
+    3. The up, which defines the direction of the up for the viewer.
+    */
+    //var viewMatrix = mat4.create();
+    var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
+    console.log("lookat: " + LookAt[0]);
+    //11111 doubt verify center position
+    var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
+    mat4.lookAt(viewMatrix, eye, center, ViewUp);
+
+    //doubt 11111 perspective matrix
+    mat4.perspective(perspMatrix, Math.PI/2, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+}
 
 /* MAIN -- HERE is where execution begins after window load */
 
 function main() {
   
   setupWebGL(); // set up the webGL environment
+  initMatrices();
   loadTriangles(); // load in the triangles from tri file
   loadEllipsoids();
   setupShaders(); // setup the webGL shaders
