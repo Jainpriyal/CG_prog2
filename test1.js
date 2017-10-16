@@ -149,6 +149,8 @@ function loadTriangles() {
         var triToAdd = vec3.create(); // tri indices to add to the index array
         
         var diffuseArray = [];
+        var ambientArray = [];
+        var specularArray = [];
 
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
@@ -168,9 +170,15 @@ function loadTriangles() {
             //setup vertex color
             for(whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++){
                 var diff_col= inputTriangles[whichSet].material.diffuse;
+                var ambi_col= inputTriangles[whichSet].material.ambient;
+                var spec_col= inputTriangles[whichSet].material.specular;
+
                 diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
+                ambientArray.push(ambi_col[0], ambi_col[1], ambi_col[2], 1.0);
+                specularArray.push(spec_col[0], spec_col[1], spec_col[2], 1.0);
             }
 
+            console.log("***********ambient col:" + ambientArray);
             vtxBufferSize += inputTriangles[whichSet].vertices.length; // total number of vertices
             triBufferSize += inputTriangles[whichSet].triangles.length; // total number of tris
         } // end for each triangle set 
@@ -190,6 +198,16 @@ function loadTriangles() {
         diffuseBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(diffuseArray), gl.STATIC_DRAW);
+
+        //send ambient buffer to webgl
+        ambientBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, ambientBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ambientArray), gl.STATIC_DRAW);
+
+        //send specular buffer to webgl
+        specularBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, specularBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(specularArray), gl.STATIC_DRAW);
 
         // send the triangle indices to webGL
         triangleBuffer = gl.createBuffer(); // init empty triangle index buffer
@@ -316,10 +334,18 @@ function setupShaders() {
     var fShaderCode = `
         precision mediump float;
 
+        uniform vec4 finalEyeLoc;
+        uniform vec4 finalLightLoc;
+        uniform vec4 finalLightCol;
+
         varying vec4 finalDiffuseColor;
+        varying vec4 finalAmbientColor;
+        varying vec4 finalSpecularColor;
 
         void main(void) {
-            gl_FragColor = finalDiffuseColor; // all fragments are white
+
+            vec4 finalColor = finalAmbientColor + finalDiffuseColor + finalSpecularColor;
+            gl_FragColor = finalAmbientColor + finalDiffuseColor + finalSpecularColor; // all fragments are white
         }
     `;
     
@@ -328,15 +354,21 @@ function setupShaders() {
         attribute vec3 vertexPosition;
 
         attribute vec4 diffuseAttribute;
+        attribute vec4 ambientAttribute;
+        attribute vec4 specularAttribute;
 
         uniform mat4 uniformViewMatrix;
         uniform mat4 uniformPerspMatrix;
 
         varying vec4 finalDiffuseColor;
+        varying vec4 finalAmbientColor;
+        varying vec4 finalSpecularColor;
 
         void main(void) {
             gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
             finalDiffuseColor = diffuseAttribute;
+            finalAmbientColor = ambientAttribute;
+            finalSpecularColor = specularAttribute;
         }
     `;
     
@@ -374,9 +406,24 @@ function setupShaders() {
                 uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
                 uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
 
+                //get eye location
+                uniformEyeLoc = gl.getUniformLocation(shaderProgram, "finalEyeLoc");
+
+                //get light location
+                uniformLightLoc = gl.getUniformLocation(shaderProgram, "finalLightLoc");
+                uniformLightCol = gl.getUniformLocation(shaderProgram, "finalLightCol");
+
                 //diffuse color position
                 diffusePositionAttrib = gl.getAttribLocation(shaderProgram, "diffuseAttribute");
                 gl.enableVertexAttribArray(diffusePositionAttrib);
+
+                //ambient color position
+                ambientPositionAttrib = gl.getAttribLocation(shaderProgram, "ambientAttribute");
+                gl.enableVertexAttribArray(ambientPositionAttrib);
+
+                //specular color position
+                specularPositionAttrib = gl.getAttribLocation(shaderProgram, "specularAttribute");
+                gl.enableVertexAttribArray(specularPositionAttrib);
 
             } // end if no shader program link errors
         } // end if no compile errors
@@ -391,18 +438,32 @@ function setupShaders() {
 function renderTriangles() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
     
-    // vertex buffer: activate and feed into vertex shader
-    gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
-    gl.vertexAttribPointer(vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
-
     //set uniform variables: 
     // //view matrix, perspective matrix, light, eye, light_col
     gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
     gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
 
-        // //diffuse color
+    //send eye and light coordinates
+    gl.uniform4fv(uniformEyeLoc, EyeLoc);
+    gl.uniform4fv(uniformLightLoc, LightLoc);
+    gl.uniform4fv(uniformLightCol, LightCol);
+
+    /******************** for rendering triangles *****************/
+    // vertex buffer: activate and feed into vertex shader
+    gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
+    gl.vertexAttribPointer(vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
+
+    // //diffuse color
     gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
     gl.vertexAttribPointer(diffusePositionAttrib, 4, gl.FLOAT, false, 0, 0);
+
+    //ambient color
+    gl.bindBuffer(gl.ARRAY_BUFFER, ambientBuffer);
+    gl.vertexAttribPointer(ambientPositionAttrib, 4, gl.FLOAT, false, 0, 0);
+
+    //specular color
+    gl.bindBuffer(gl.ARRAY_BUFFER, specularBuffer);
+    gl.vertexAttribPointer(specularPositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
@@ -416,6 +477,13 @@ function renderTriangles() {
     gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_diffuse_buffer);
     gl.vertexAttribPointer(diffusePositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
+        // ambient color
+    gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_ambient_buffer);
+    gl.vertexAttribPointer(ambientPositionAttrib, 4, gl.FLOAT, false, 0, 0);
+
+        //specular color
+    gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_specular_buffer);
+    gl.vertexAttribPointer(specularPositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
     //sphere // vertex buffer: activate and feed into vertex shader
     gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_vertexposition_buffer);
