@@ -148,6 +148,8 @@ function loadTriangles() {
         var indexOffset = vec3.create(); // the index offset for the current set
         var triToAdd = vec3.create(); // tri indices to add to the index array
         
+        var diffuseArray = [];
+
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
             
@@ -162,6 +164,12 @@ function loadTriangles() {
                 vec3.add(triToAdd,indexOffset,inputTriangles[whichSet].triangles[whichSetTri]);
                 indexArray.push(triToAdd[0],triToAdd[1],triToAdd[2]);
             } // end for triangles in set
+
+            //setup vertex color
+            for(whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++){
+                var diff_col= inputTriangles[whichSet].material.diffuse;
+                diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
+            }
 
             vtxBufferSize += inputTriangles[whichSet].vertices.length; // total number of vertices
             triBufferSize += inputTriangles[whichSet].triangles.length; // total number of tris
@@ -178,6 +186,11 @@ function loadTriangles() {
         gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate that buffer
         gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(coordArray),gl.STATIC_DRAW); // coords to that buffer
         
+        //send diffuse buffer to webgl
+        diffuseBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(diffuseArray), gl.STATIC_DRAW);
+
         // send the triangle indices to webGL
         triangleBuffer = gl.createBuffer(); // init empty triangle index buffer
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffer); // activate that buffer
@@ -301,8 +314,12 @@ function setupShaders() {
     
     // define fragment shader in essl using es6 template strings
     var fShaderCode = `
+        precision mediump float;
+
+        varying vec4 finalDiffuseColor;
+
         void main(void) {
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // all fragments are white
+            gl_FragColor = finalDiffuseColor; // all fragments are white
         }
     `;
     
@@ -310,11 +327,16 @@ function setupShaders() {
     var vShaderCode = `
         attribute vec3 vertexPosition;
 
+        attribute vec4 diffuseAttribute;
+
         uniform mat4 uniformViewMatrix;
         uniform mat4 uniformPerspMatrix;
 
+        varying vec4 finalDiffuseColor;
+
         void main(void) {
             gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
+            finalDiffuseColor = diffuseAttribute;
         }
     `;
     
@@ -352,6 +374,10 @@ function setupShaders() {
                 uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
                 uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
 
+                //diffuse color position
+                diffusePositionAttrib = gl.getAttribLocation(shaderProgram, "diffuseAttribute");
+                gl.enableVertexAttribArray(diffusePositionAttrib);
+
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -374,13 +400,21 @@ function renderTriangles() {
     gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
     gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
 
+        // //diffuse color
+    gl.bindBuffer(gl.ARRAY_BUFFER, diffuseBuffer);
+    gl.vertexAttribPointer(diffusePositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
     gl.drawElements(gl.TRIANGLES,triBufferSize,gl.UNSIGNED_SHORT,0); // render
 
+    // ************** ellipsoid *************************/
     gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_vertexposition_buffer);
     gl.vertexAttribPointer(vertexPositionAttrib, 3, gl.FLOAT, false, 0, 0);
+
+        // //diffuse color
+    gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_diffuse_buffer);
+    gl.vertexAttribPointer(diffusePositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
 
     //sphere // vertex buffer: activate and feed into vertex shader
