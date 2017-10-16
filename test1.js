@@ -294,9 +294,9 @@ function loadEllipsoids() {
 
                     normalArray.push(center_x+x, center_y+y, center_z+z, 1.0);
 
-                    vertexCoord.push(inputSpheres[whichSet]["x"] + radius1 * x,
-                        inputSpheres[whichSet]["y"] + radius2 * y,
-                        inputSpheres[whichSet]["z"] + radius3 * z);
+                    vertexCoord.push(center_x + radius1 * x,
+                        center_y + radius2 * y,
+                        center_z + radius3 * z);
                     vertexCoordCount++;
                 }
             }
@@ -372,7 +372,7 @@ function setupShaders() {
             vec4 N = normalize(finalNormalVal);
             vec4 H = normalize(finalLightLoc - finalvertexPosition);
 
-            float NdotL = dot(N, l);
+            float NdotL = max(0.0, dot(N, l));
             float NdotH = max(0.0, dot(N, H));
             vec4 ambientpart = finalLightCol*finalAmbientColor;
             vec4 diffusepart = finalDiffuseColor*NdotL;
