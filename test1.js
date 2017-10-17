@@ -26,6 +26,7 @@ var vertexPositionAttrib; // where to put position for vertex shader
 /* matrices required */
 var viewMatrix = mat4.create();
 var perspMatrix = mat4.create();
+var modelMatrix = mat4.create();
 
 //color Buffer:
 var diffuseBuffer;
@@ -53,6 +54,7 @@ var ellipsoid_n_value_buffer;
 //uniform variables
 var uniformvMatrix;
 var uniformpMatrix;
+var uniformmMatrix;
 var uniformLightLoc;
 var uniformLightCol;
 var uniformEyeLoc;
@@ -413,6 +415,7 @@ function setupShaders() {
 
         uniform mat4 uniformViewMatrix;
         uniform mat4 uniformPerspMatrix;
+        uniform mat4 uniformModelMatrix;
 
         varying vec4 finalDiffuseColor;
         varying vec4 finalAmbientColor;
@@ -422,8 +425,8 @@ function setupShaders() {
         varying vec4 finalvertexPosition;
 
         void main(void) {
-            finalvertexPosition = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0);
-            gl_Position = uniformPerspMatrix * uniformViewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
+            finalvertexPosition = uniformPerspMatrix * uniformViewMatrix * uniformModelMatrix * vec4(vertexPosition, 1.0);
+            gl_Position = uniformPerspMatrix * uniformViewMatrix * uniformModelMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
             finalDiffuseColor = diffuseAttribute;
             finalAmbientColor = ambientAttribute;
             finalSpecularColor = specularAttribute;
@@ -465,6 +468,7 @@ function setupShaders() {
 
                 uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
                 uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
+                uniformmMatrix = gl.getUniformLocation(shaderProgram, "uniformModelMatrix");
 
                 //get eye location
                 uniformEyeLoc = gl.getUniformLocation(shaderProgram, "finalEyeLoc");
@@ -510,6 +514,7 @@ function renderTriangles() {
     // //view matrix, perspective matrix, light, eye, light_col
     gl.uniformMatrix4fv(uniformvMatrix, false, viewMatrix);
     gl.uniformMatrix4fv(uniformpMatrix, false, perspMatrix);
+    gl.uniformMatrix4fv(uniformmMatrix, false, modelMatrix);
 
     //send eye and light coordinates
     gl.uniform4fv(uniformEyeLoc, EyeLoc);
@@ -587,6 +592,10 @@ function initMatrices(){
     2. The center, or the point where we the camera aims;
     3. The up, which defines the direction of the up for the viewer.
     */
+    
+    //model matrix
+    mat4.identity(modelMatrix);
+
     //var viewMatrix = mat4.create();
     var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
     console.log("lookat: " + LookAt[0]);
@@ -604,7 +613,35 @@ function handleKeyDown()
     console.log("Down key is preseed");
     switch(event.key){
         case "a":
-            console.log("a is pressed");
+            console.log("translate view left along X axis");
+            mat4.translate(modelMatrix, modelMatrix, [0.1, 0, 0]);
+            renderTriangles();
+            return;
+        case "d":
+            console.log("translate view right along X axis");
+            mat4.translate(modelMatrix, modelMatrix, [-0.1, 0, 0]);
+            renderTriangles();
+            return;
+        case "w":
+            console.log("translate view forward along z axis");
+            mat4.translate(modelMatrix, modelMatrix, [0, 0, -0.1]);
+            renderTriangles();
+            return;
+        case "s":
+            console.log("translate view backward along z axis");
+            mat4.translate(modelMatrix, modelMatrix, [0, 0, 0.1]);
+            renderTriangles();
+            return;
+        case "q":
+            console.log("translate view up along y axis");
+            mat4.translate(modelMatrix, modelMatrix, [0, 0.1, 0]);
+            renderTriangles();
+            return;
+        case "e":
+            console.log("translate view down along y axis");
+            mat4.translate(modelMatrix, modelMatrix, [0, -0.1, 0]);
+            renderTriangles();
+            return;
     }
 }
 
