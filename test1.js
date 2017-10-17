@@ -57,6 +57,9 @@ var uniformLightLoc;
 var uniformLightCol;
 var uniformEyeLoc;
 
+//record pressed keys
+var keyPressed = [];
+
 // ASSIGNMENT HELPER FUNCTIONS
 
 // get the JSON file from the passed URL
@@ -580,6 +583,28 @@ function initMatrices(){
     mat4.perspective(perspMatrix, Math.PI/2, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
 }
 
+function handleKeyDown()
+{
+    keyPressed[event.keyCode] = true;
+    console.log("Down key is preseed");
+    switch(event.key){
+        case "a":
+            console.log("a is pressed");
+    }
+}
+
+function handleKeyUp()
+{
+    keyPressed[event.keyCode] = false;
+    console.log("********* up key is pressed ******");
+}
+
+function handleEvents()
+{
+    document.onkeydown = handleKeyDown;
+    document.onkeyup = handleKeyUp;
+}
+
 /* MAIN -- HERE is where execution begins after window load */
 
 function main() {
@@ -590,5 +615,6 @@ function main() {
   loadEllipsoids();
   setupShaders(); // setup the webGL shaders
   renderTriangles(); // draw the triangles using webGL
+  handleEvents();
   
 } // end main
