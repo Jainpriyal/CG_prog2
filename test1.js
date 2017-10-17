@@ -61,7 +61,10 @@ var uniformEyeLoc;
 
 //record pressed keys
 var keyPressed = [];
-
+var ellipsoidSelected =-1;
+var num_ellipsoid =0;
+var triangleSelected =-1;
+var num_triangle =0;
 // ASSIGNMENT HELPER FUNCTIONS
 
 // get the JSON file from the passed URL
@@ -158,14 +161,19 @@ function loadTriangles() {
         var specularArray = [];
         var nArray = [];
         var normalArray = [];
-
+        num_triangle = inputTriangles.length;
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
             
             // set up the vertex coord array
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert];
+                if(triangleSelected==whichSet){
+                    coordArray.push(vtxToAdd[0]*1.2,vtxToAdd[1]*1.2,vtxToAdd[2]*1.2);
+                }
+                else{
                 coordArray.push(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]);
+                }
             } // end for vertices in set
             
             // set up the triangle index array, adjusting indices across sets
@@ -190,7 +198,12 @@ function loadTriangles() {
             //doubt 1111 check taking normal value
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].normals.length; whichSetVert++) {
                 var normal_val = inputTriangles[whichSet].normals[whichSetVert];
-                normalArray.push(normal_val[0], normal_val[1], normal_val[2], 1.0);
+                if(triangleSelected==whichSet){
+                    normalArray.push(normal_val[0]*1.2, normal_val[1]*1.2, normal_val[2]*1.2, 1.0);
+                }
+                else{
+                    normalArray.push(normal_val[0], normal_val[1], normal_val[2], 1.0);
+                }
             } // end for vertices in set
 
 
@@ -235,11 +248,12 @@ function loadTriangles() {
         gl.bindBuffer(gl.ARRAY_BUFFER, nValueBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nArray), gl.STATIC_DRAW);
 
-        // send the triangle indices to webGL
+        // // send the triangle indices to webGL
         triangleBuffer = gl.createBuffer(); // init empty triangle index buffer
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffer); // activate that buffer
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
-
+       // ellipsoid_triangleindex_buffer.numItems = triangleindexArray.length;
+        triangleBuffer.numItems = indexArray.length;
     } // end if triangles found
 } // end load triangles
 
@@ -262,7 +276,8 @@ function loadEllipsoids() {
         var ambientArray = [];
         var specularArray = [];
         var nArray = [];
-              
+        num_ellipsoid = inputSpheres.length;   
+        
         for (var whichSet = 0; whichSet < inputSpheres.length; whichSet++) {
 
             var radius1 = inputSpheres[whichSet]["a"];
@@ -310,10 +325,19 @@ function loadEllipsoids() {
                     normalArray.push(center_x+x, center_y+y, center_z+z, 1.0);
 
                     //push vertex coordinates into array
-                    vertexCoord.push(center_x + radius1 * x, 
+                    //scale the vertices
+                    if(ellipsoidSelected==whichSet)
+                    {
+                    vertexCoord.push(center_x + radius1 * x*1.2, 
+                        center_y + radius2 * y*1.2,
+                        center_z + radius3 * z*1.2);
+                    }
+                    else
+                    {
+                        vertexCoord.push(center_x + radius1 * x, 
                         center_y + radius2 * y,
                         center_z + radius3 * z);
-
+                    }
                     //increase vertex count
                     vertexCoordCount++;
                 }
@@ -546,9 +570,12 @@ function renderTriangles() {
     gl.bindBuffer(gl.ARRAY_BUFFER, normalValueBuffer);
     gl.vertexAttribPointer(normalPositionAttrib, 4, gl.FLOAT, false, 0, 0);
 
+    console.log("************ renderTriangles *************");
     // triangle buffer: activate and render
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffer); // activate
-    gl.drawElements(gl.TRIANGLES,triBufferSize,gl.UNSIGNED_SHORT,0); // render
+    gl.drawElements(gl.TRIANGLES,triangleBuffer.numItems,gl.UNSIGNED_SHORT,0); // render
+
+    console.log("********** drawing triangle ************");
 
     // ************** ellipsoid *************************/
     gl.bindBuffer(gl.ARRAY_BUFFER, ellipsoid_vertexposition_buffer);
@@ -664,6 +691,32 @@ function handleKeyDown()
             mat4.rotate(modelMatrix, modelMatrix, -0.08, [1, 0, 0]);
             renderTriangles();
             return;
+
+        case "ArrowLeft":
+            console.log("left arrow is selected");
+            triangleSelected = (triangleSelected + 1)%num_triangle;
+            loadTriangles();
+            renderTriangles();
+            return;
+
+        case "ArrowRight":
+            console.log("right arrow is selected");
+            return;
+
+        case "ArrowUp":
+            console.log("Up arrow is selected");
+            ellipsoidSelected = (ellipsoidSelected + 1)%num_ellipsoid;
+            loadEllipsoids();
+            renderTriangles();
+            return;
+
+        case "ArrowDown":
+            console.log("Down arrow is selected");
+            ellipsoidSelected = (ellipsoidSelected + num_ellipsoid - 1)%num_ellipsoid;
+            loadEllipsoids();
+            renderTriangles();
+            return;
+
     }
 }
 
@@ -686,9 +739,11 @@ function main() {
   setupWebGL(); // set up the webGL environment
   initMatrices();
   loadTriangles(); // load in the triangles from tri file
+  loadTriangles();
   loadEllipsoids();
   setupShaders(); // setup the webGL shaders
   renderTriangles(); // draw the triangles using webGL
+  renderTriangles();
   handleEvents();
   
 } // end main
