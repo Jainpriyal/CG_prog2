@@ -611,6 +611,8 @@ function handleKeyDown()
 {
     keyPressed[event.keyCode] = true;
     console.log("Down key is preseed");
+
+    //Doubt 1111 verify rotation direction
     switch(event.key){
         case "a":
             console.log("translate view left along X axis");
@@ -640,6 +642,26 @@ function handleKeyDown()
         case "e":
             console.log("translate view down along y axis");
             mat4.translate(modelMatrix, modelMatrix, [0, -0.1, 0]);
+            renderTriangles();
+            return;
+        case "A":
+            console.log("rotate view left around Y axis");
+            mat4.rotate(modelMatrix, modelMatrix, 0.08, [0, 1, 0]);
+            renderTriangles();
+            return;
+        case "D":
+            console.log("rotate view right around Y axis");
+            mat4.rotate(modelMatrix, modelMatrix, -0.08, [0, 1, 0]);
+            renderTriangles();
+            return;
+        case "W":
+            console.log("rotate view forward around X axis");
+            mat4.rotate(modelMatrix, modelMatrix, 0.08, [1, 0, 0]);
+            renderTriangles();
+            return;
+        case "S":
+            console.log("rotate view backward around X axis");
+            mat4.rotate(modelMatrix, modelMatrix, -0.08, [1, 0, 0]);
             renderTriangles();
             return;
     }
