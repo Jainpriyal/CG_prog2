@@ -241,26 +241,28 @@ function loadTriangles() {
     } // end if triangles found
 } // end load triangles
 
+//function to load ellipsoid
 function loadEllipsoids() {
     var inputSpheres = getJSONFile(INPUT_SPHERES_URL, "ellipsoids");
     if (inputSpheres != String.null) {
-        var vtxBufferSize1 = 0;
+        var vtxBufferSize = 0;
         var vertexCoord = [];
         var normalArray = [];
         var triangleindexArray = [];
+        var offset = 0;
+
+        //define latitude and logitude for drawing ellipsoid
+        var latitude_length = 40;
+        var longitude_length = 40;
 
         //color array
         var diffuseArray = [];
         var ambientArray = [];
         var specularArray = [];
         var nArray = [];
-     
-        var indexOffset1 = 0; // the index offset for the current set
-        var triToAdd1 = vec3.create(); // tri indices to add to the index array
+              
         for (var whichSet = 0; whichSet < inputSpheres.length; whichSet++) {
-            indexOffset1 = vtxBufferSize1; // update vertex offset
-            var latitudeBands = 40;
-            var longitudeBands = 40;
+
             var radius1 = inputSpheres[whichSet]["a"];
             var radius2 = inputSpheres[whichSet]["b"];
             var radius3 = inputSpheres[whichSet]["c"];
@@ -270,49 +272,62 @@ function loadEllipsoids() {
             var center_z = inputSpheres[whichSet]["z"];
 
             var vertexCoordCount = 0;
-            for (var latNumber = 0; latNumber <= latitudeBands; latNumber++) {
-                var theta = latNumber * Math.PI / latitudeBands;
-                var sinTheta = Math.sin(theta);
-                var cosTheta = Math.cos(theta);
+            offset = vtxBufferSize; // update vertex offset
 
-                for (var longNumber = 0; longNumber <= longitudeBands; longNumber++) {
-                    var phi = longNumber * 2 * Math.PI / longitudeBands;
-                    var sinPhi = Math.sin(phi);
-                    var cosPhi = Math.cos(phi);
+            for (var lat = 0; lat <= latitude_length; lat++) {
 
-                    var x = cosPhi * sinTheta;
-                    var y = cosTheta;
-                    var z = sinPhi * sinTheta;
+                var theta = lat * Math.PI / latitude_length;
+                var sin_Theta_val = Math.sin(theta);
+                var cos_Theta_val = Math.cos(theta);
 
+                for (var long_no = 0; long_no <= longitude_length; long_no++) {
+                    var phi = long_no * 2 * Math.PI / longitude_length;
+                    var sin_Phi_val = Math.sin(phi);
+                    var cos_Phi_val = Math.cos(phi);
+
+                    var x = cos_Phi_val * sin_Theta_val;
+                    var y = cos_Theta_val;
+                    var z = sin_Phi_val * sin_Theta_val;
+
+                    //push ambient color into array
                     var ambi_col = inputSpheres[whichSet].ambient;
                     ambientArray.push(ambi_col[0], ambi_col[1], ambi_col[2], 1.0);
                     
+                    //push diffuse color into array
                     var diff_col = inputSpheres[whichSet].diffuse;
                     diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
 
+                    //push specular color into array
                     var spec_col = inputSpheres[whichSet].specular;
                     specularArray.push(spec_col[0], spec_col[1], spec_col[2], 1.0);
-                    
+
+                    //push n value into array                    
                     nArray.push(inputSpheres[whichSet]["n"]);
 
+                    //push normal into array
                     normalArray.push(center_x+x, center_y+y, center_z+z, 1.0);
 
-                    vertexCoord.push(center_x + radius1 * x,
+                    //push vertex coordinates into array
+                    vertexCoord.push(center_x + radius1 * x, 
                         center_y + radius2 * y,
                         center_z + radius3 * z);
+
+                    //increase vertex count
                     vertexCoordCount++;
                 }
             }
 
-            for (var latNumber = 0; latNumber < latitudeBands; latNumber++) {
-                for (var longNumber = 0; longNumber < longitudeBands; longNumber++) {
-                    var first = (latNumber * (longitudeBands + 1)) + longNumber;
-                    var second = first + longitudeBands + 1;
-                    triangleindexArray.push(first + indexOffset1, second + indexOffset1, first + 1 + indexOffset1);
-                    triangleindexArray.push(second + indexOffset1, second + 1 + indexOffset1, first + 1 + indexOffset1);
+            //push triangle vertices 
+            for (var lat = 0; lat < latitude_length; lat++) {
+                for (var long_no = 0; long_no < longitude_length; long_no++) {
+                    var first_tri = (lat * (longitude_length + 1)) + long_no;
+                    var second_tri = first_tri + longitude_length + 1;
+                    triangleindexArray.push(first_tri + offset, second_tri + offset, first_tri + 1 + offset);
+                    triangleindexArray.push(second_tri + offset, second_tri + 1 + offset, first_tri + 1 + offset);
                 }
             }
-            vtxBufferSize1 += vertexCoordCount; // total number of vertices       
+            //increase vertex buffer count
+            vtxBufferSize = vtxBufferSize + vertexCoordCount;        
         }
 
         ellipsoid_normal_buffer = gl.createBuffer();
