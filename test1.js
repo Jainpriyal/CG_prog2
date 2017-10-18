@@ -164,18 +164,29 @@ function loadTriangles() {
         num_triangle = inputTriangles.length;
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
-            
+            var centroid = new vec3.fromValues(0,0,0);
             // set up the vertex coord array
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert];
-                if(triangleSelected==whichSet){
-                    coordArray.push(vtxToAdd[0]*1.2,vtxToAdd[1]*1.2,vtxToAdd[2]*1.2);
+                console.log("triangle selected:"+ triangleSelected);
+                if(triangleSelected==whichSet)
+                {
+                    vec3.add(centroid, centroid, new vec3.fromValues(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]));
                 }
                 else{
+                    console.log("***** inside else *********");
                 coordArray.push(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]);
-                }
+            }
             } // end for vertices in set
-            
+            var count = inputTriangles[whichSet].vertices.length;
+            vec3.scale(centroid, centroid, 1/count);
+
+            for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++) {
+            if(triangleSelected==whichSet){
+                    vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert];
+                    coordArray.push(((vtxToAdd[0]-centroid[0])*1.2)+centroid[0],((vtxToAdd[1]-centroid[1])*1.2)+centroid[1],((vtxToAdd[2]-centroid[2])*1.2)+centroid[2]);
+                }
+            }
             // set up the triangle index array, adjusting indices across sets
             for (whichSetTri=0; whichSetTri<inputTriangles[whichSet].triangles.length; whichSetTri++) {
                 vec3.add(triToAdd,indexOffset,inputTriangles[whichSet].triangles[whichSetTri]);
@@ -638,6 +649,7 @@ function handleKeyDown()
 {
     keyPressed[event.keyCode] = true;
     console.log("Down key is preseed");
+    console.log("**** key: ****" + event.key);
 
     //Doubt 1111 verify rotation direction
     switch(event.key){
@@ -700,7 +712,18 @@ function handleKeyDown()
             return;
 
         case "ArrowRight":
-            console.log("right arrow is selected");
+            console.log("right arrow is selected, triangleSelected"+ triangleSelected);
+            console.log("num_triangle: "+ num_triangle);
+            if(triangleSelected>0)
+            {
+                triangleSelected = triangleSelected-1;
+            }
+            else
+            {
+                triangleSelected = num_triangle-1;
+            }
+            loadTriangles();
+            renderTriangles();
             return;
 
         case "ArrowUp":
@@ -716,6 +739,13 @@ function handleKeyDown()
             loadEllipsoids();
             renderTriangles();
             return;
+
+        case " ":
+            ellipsoidSelected =-1;
+            triangleSelected = -1;
+            loadTriangles();
+            loadEllipsoids();
+            renderTriangles();
 
     }
 }
@@ -739,7 +769,6 @@ function main() {
   setupWebGL(); // set up the webGL environment
   initMatrices();
   loadTriangles(); // load in the triangles from tri file
-  loadTriangles();
   loadEllipsoids();
   setupShaders(); // setup the webGL shaders
   renderTriangles(); // draw the triangles using webGL
