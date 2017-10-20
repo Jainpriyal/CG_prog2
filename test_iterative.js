@@ -90,7 +90,7 @@ complete_set.list = [];
 //if it is 0 then use phong
 var is_blinn_phong =1;
 var uniformBlinn;
-
+var aspect =1;
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -137,7 +137,8 @@ function initMatrices(){
     mat4.lookAt(viewMatrix, eye, center, ViewUp);
 
     //doubt 11111 perspective matrix
-    mat4.perspective(perspMatrix, Math.PI/2, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+    console.log("**** aspect: "+ aspect);
+    mat4.perspective(perspMatrix, Math.PI/2, aspect, 0.1, 100.0);
 
     //translate matrices
     mat4.identity(translateMatrix);
@@ -149,8 +150,19 @@ function setupWebGL() {
 
     // Get the canvas and context
     var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
-    canvas.width = document.getElementById("canvas_width").value;
-    canvas.height = document.getElementById("canvas_height").value;
+    canvas.width = parseInt(document.getElementById("canvas_width").value);
+    canvas.height = parseInt(document.getElementById("canvas_height").value);
+
+    var window = {};
+    window.left = parseFloat(document.getElementById("window_left").value);
+    window.right = parseFloat(document.getElementById("window_right").value);
+    window.top = parseFloat(document.getElementById("window_top").value);
+    window.bottom = parseFloat(document.getElementById("window_bottom").value);
+
+    console.log("window.left: "+ window.right + "fhjehf: " + window.left);
+    aspect = (window.right - window.left)/(window.top - window.bottom);
+
+    console.log("&&&&&&&&&&&& aspect: " + aspect);
 
     gl = canvas.getContext("webgl"); // get a webgl object from it
     gl.viewportWidth = canvas.width;
@@ -801,26 +813,26 @@ function renderTriangles() {
 } // end render triangles
 
 //function to initialize view and projection matrices
-function initMatrices(){
-    //view matrix
-    /*Determined by:
-    1. The eye, or the position of the viewer;
-    2. The center, or the point where we the camera aims;
-    3. The up, which defines the direction of the up for the viewer.
-    */
+// function initMatrices(){
+//     //view matrix
+//     /*Determined by:
+//     1. The eye, or the position of the viewer;
+//     2. The center, or the point where we the camera aims;
+//     3. The up, which defines the direction of the up for the viewer.
+//     */
     
-    //model matrix
+//     //model matrix
 
-    //var viewMatrix = mat4.create();
-    var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
-   // console.log("lookat: " + LookAt[0]);
-    //11111 doubt verify center position
-    var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
-    mat4.lookAt(viewMatrix, eye, center, ViewUp);
+//     //var viewMatrix = mat4.create();
+//     var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
+//    // console.log("lookat: " + LookAt[0]);
+//     //11111 doubt verify center position
+//     var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
+//     mat4.lookAt(viewMatrix, eye, center, ViewUp);
 
-    //doubt 11111 perspective matrix
-    mat4.perspective(perspMatrix, Math.PI/2, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
-}
+//     //doubt 11111 perspective matrix
+//     mat4.perspective(perspMatrix, Math.PI/2, 1, 0.1, 100.0);
+// }
 
 function reset_color_weight()
 {

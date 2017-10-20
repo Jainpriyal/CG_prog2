@@ -5,19 +5,40 @@
     <title>Prog 2: Rasterization Shell</title>
 
     <script type="text/javascript" src="gl-matrix-min.js"></script>
-	    <script type="text/javascript" src="rasterize.js"></script>
+	    <script type="text/javascript" src="test_iterative.js"></script>
   </head>
 
   <body onload="main();">
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
     <p>
-    <label><b>Canvas Dimensions </b></label>
+    <label><b>ViewPort Dimensions </b></label>
     <br>
     <label>Width </label> 
-    <input type="text" value="512" style="width:35px" id="canvas_width">
+    <input type="text" value="512" style="width:55px" id="canvas_width">
     <label>Height </label> 
-    <input type="text" value="512" style="width:35px" id="canvas_height">
+    <input type="text" value="512" style="width:55px" id="canvas_height">
     <br>
     </p>
+
+    <p>
+    <label><b>Window Dimensions </b></label>
+    <br>
+    <label>left </label> 
+    <input type="text" value="-0.5" style="width:55px" id="window_left">
+    <label>right </label> 
+    <input type="text" value="0.5" style="width:55px" id="window_right">
+    <label>top</label>
+    <input type="text" value="0.5" style="width:55px" id="window_top">
+    <label>bottom</label>
+    <input type="text" value="-0.5" style="width:55px" id="window_bottom">    
+    <br>
+    </p>
+
+    <p>
+    <br>
+    <input type="button" id="Submitbtn" name="Submit" value="Submit" onclick="main();">
+    <br>
+    </p>
+
   </body>
 </html>
