@@ -16,6 +16,9 @@ var LightLoc = new vec4.fromValues(-1,3,-0.5,1.0) //default light location in wo
 var LightCol = new vec4.fromValues(1.0, 1.0, 1.0, 1.0)// default light color, i.e. white
 var EyeLoc = new vec4.fromValues(Eye[0], Eye[1], Eye[2],1.0);
 
+//multiple lights
+var lightArray = [];
+
 /* webgl globals */
 var gl = null; // the all powerful gl object. It's all here folks!
 var vertexBuffer; // this contains vertex coordinates in triples
@@ -31,9 +34,6 @@ var modelMatrix = mat4.create();
 //other matrices
 var translateMatrix = mat4.create();
 var rotateMatrix = mat4.create();
-
-var myMatrix = mat4.create();
-mat4.identity(myMatrix);
 
 //color position attribute
 var diffusePositionAttrib;
@@ -73,12 +73,6 @@ var diff_weight =0;
 var spec_weight =0;
 var n_weight=0;
 
-//model matrix for triangle
-var triModelMatrix = mat3.create();
-
-//key press
-var k_pressed =0;
-
 var final_tri_no=0;
 var final_ellip_no =0;
 
@@ -91,6 +85,9 @@ complete_set.list = [];
 var is_blinn_phong =1;
 var uniformBlinn;
 var aspect =1;
+
+var multiple_light_loc;
+var use_light;
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -131,16 +128,15 @@ function initMatrices(){
     */
     //var viewMatrix = mat4.create();
     var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
-  //  console.log("lookat: " + LookAt[0]);
-    //11111 doubt verify center position
+
+    //define center
     var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
     mat4.lookAt(viewMatrix, eye, center, ViewUp);
 
-    //doubt 11111 perspective matrix
-    console.log("**** aspect: "+ aspect);
+    //initialize perspective matrix
     mat4.perspective(perspMatrix, Math.PI/2, aspect, 0.1, 100.0);
 
-    //translate matrices
+    //translate and rotate matrices
     mat4.identity(translateMatrix);
     mat4.identity(rotateMatrix);
 }
@@ -153,16 +149,19 @@ function setupWebGL() {
     canvas.width = parseInt(document.getElementById("canvas_width").value);
     canvas.height = parseInt(document.getElementById("canvas_height").value);
 
+    //Get window and its dimensions
     var window = {};
     window.left = parseFloat(document.getElementById("window_left").value);
     window.right = parseFloat(document.getElementById("window_right").value);
     window.top = parseFloat(document.getElementById("window_top").value);
     window.bottom = parseFloat(document.getElementById("window_bottom").value);
 
-    console.log("window.left: "+ window.right + "fhjehf: " + window.left);
+    //calculate aspect for perspective matrix
     aspect = (window.right - window.left)/(window.top - window.bottom);
 
-    console.log("&&&&&&&&&&&& aspect: " + aspect);
+    //use multiple light location
+    multiple_light_loc = document.getElementById("light_location").value;
+    use_light = document.getElementById("use_light").checked;
 
     gl = canvas.getContext("webgl"); // get a webgl object from it
     gl.viewportWidth = canvas.width;
@@ -185,6 +184,7 @@ function setupWebGL() {
  
 } // end setupWebGL
 
+//choose color, if greater than 0, then round off
 function chooseColor(mycolor)
 {
     if(mycolor>1.0)
@@ -193,6 +193,15 @@ function chooseColor(mycolor)
     }
     return mycolor;
 }
+
+//load multiple lights from json file
+function loadLights(){
+    var inputLights = getJSONFile(multiple_light_loc, "lights");
+    if(inputLights!=String.null){
+        console.log("use multiple lights");
+    }
+}
+
 // read triangles in, load them into webgl buffers
 function loadTriangles() {
     var inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles");
@@ -208,36 +217,34 @@ function loadTriangles() {
         for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
 
             vec3.set(indexOffset,vtxBufferSize,vtxBufferSize,vtxBufferSize); // update vertex offset
-            var centroid = new vec3.fromValues(0,0,0);
-            num_triangle = inputTriangles.length;
+            var centroid = new vec3.fromValues(0,0,0); //calculate triangle centroid
+            num_triangle = inputTriangles.length; //
             var centroid = new vec3.fromValues(0,0,0);
 
             var triangle_gp = {};
             triangle_gp.triBufferSize = 0;
-            triangle_gp.specularModel = 1;
-            triangle_gp.coordArray = []; 
-            triangle_gp.normalArray = [];
-            triangle_gp.indexArray = []; 
-            triangle_gp.diffuseArray = [];
-            triangle_gp.ambientArray = [];
-            triangle_gp.specularArray = [];
-            triangle_gp.nArray = [];
-            triangle_gp.normalArray = [];
+            triangle_gp.specularModel = 1; //store specular coefficient
+            triangle_gp.coordArray = []; //store vertices
+            triangle_gp.normalArray = []; //store normal
+            triangle_gp.indexArray = []; //store index array
+            triangle_gp.diffuseArray = []; //store diffuse array
+            triangle_gp.ambientArray = []; //store ambient array
+            triangle_gp.specularArray = []; //store specular array
+            triangle_gp.nArray = []; //store n value
 
             // set up the vertex coord array
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert];
-                if(whichSet==mySelection && triangleSelected==1){   
+                if(whichSet==mySelection && triangleSelected==1)  
                     vec3.add(centroid, centroid, new vec3.fromValues(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]));
-                }
-                else{
+                else
                     triangle_gp.coordArray.push(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]);
-                }
             }
 
             var count = inputTriangles[whichSet].vertices.length;
             vec3.scale(centroid, centroid, 1/count);
 
+            //scale vertex if it is choosen
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 if(mySelection==whichSet && triangleSelected==1){
                     vtxToAdd = inputTriangles[whichSet].vertices[whichSetVert];
@@ -260,44 +267,39 @@ function loadTriangles() {
                 var ambi_col= inputTriangles[whichSet].material.ambient;
                 var spec_col= inputTriangles[whichSet].material.specular;
 
+                //add n value
                 if(whichSet==mySelection)
-                {
                     triangle_gp.nArray.push(inputTriangles[whichSet].material.n+n_weight);
-                }
-                else{
+                else
                     triangle_gp.nArray.push(inputTriangles[whichSet].material.n);
-                }
+
+                //add ambient color
                 if(whichSet==mySelection)
-                {
-                    console.log("********4676674**** myselection: " + mySelection + "*****" + Math.min(2, 5));
                     triangle_gp.ambientArray.push(chooseColor(ambi_col[0]+ambi_weight), 
                         chooseColor(ambi_col[1]+ambi_weight), chooseColor(ambi_col[2]+ambi_weight), 1.0);
-                }
                 else
                     triangle_gp.ambientArray.push(ambi_col[0], ambi_col[1], ambi_col[2], 1.0);
 
-                if(whichSet==mySelection)
-                {                    
+                //add diffuse color
+                if(whichSet==mySelection)                   
                     triangle_gp.diffuseArray.push(chooseColor(diff_col[0]+diff_weight), 
                         chooseColor(diff_col[1]+diff_weight), 
                         chooseColor(diff_col[2]+diff_weight), 1.0);
                     //triangle_gp.diffuseArray.push(1.0, 0.6, 0.7, 1.0);
-                }
-                else{
+                else
                     triangle_gp.diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
-                }
-                if(whichSet==mySelection){
+                
+                //add specular color
+                if(whichSet==mySelection)
                     triangle_gp.specularArray.push(chooseColor(spec_col[0]+spec_weight),
                         chooseColor(spec_col[1]+spec_weight), 
                         chooseColor(spec_col[2]+spec_weight), 1.0);
-                }
-                else{
+                else
                     triangle_gp.specularArray.push(spec_col[0], spec_col[1], spec_col[2], 1.0);
-                }
             }
 
             // set up the vertex coord array
-            //doubt 1111 check taking normal value
+            //set normal vertices
             for (whichSetVert=0; whichSetVert<inputTriangles[whichSet].normals.length; whichSetVert++) {
                 var normal_val = inputTriangles[whichSet].normals[whichSetVert];
                 triangle_gp.normalArray.push(normal_val[0], normal_val[1], normal_val[2], 1.0);
@@ -335,17 +337,12 @@ function loadTriangles() {
         gl.bindBuffer(gl.ARRAY_BUFFER, triangle_gp.nValueBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_gp.nArray), gl.STATIC_DRAW);
 
-        // // send the triangle indices to webGL
+        // send the triangle indices to webGL
         triangle_gp.triangleBuffer = gl.createBuffer(); // init empty triangle index buffer
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangle_gp.triangleBuffer); // activate that buffer
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(triangle_gp.indexArray),gl.STATIC_DRAW); // indices to that buffer
-       // ellipsoid_triangleindex_buffer.numItems = triangleindexArray.length;
-        //triangleBuffer.numItems = indexArray.length;
 
-        triangle_gp.id = complete_set.list.length;
-
-        //if is_triangle is 1 the the figure is triangle
-        triangle_gp.istriangle =1;
+        //push triangle group with all details in array
         complete_set.list.push(triangle_gp);
         } // end for each triangle set 
     } // end if triangles found
@@ -373,27 +370,25 @@ function loadEllipsoids() {
         var specularArray = [];
         var nArray = [];
         num_ellipsoid = inputEllipsoid.length;  
-        var ambi_const = 0.1;
-
         
         for (var whichSet = 0; whichSet < inputEllipsoid.length; whichSet++) {
-
             var triangle_gp = {};
             triangle_gp.triBufferSize = 0;
             triangle_gp.specularModel = 1;
-            triangle_gp.coordArray = []; 
-            triangle_gp.normalArray = [];
+            triangle_gp.coordArray = []; //triangle coordinate array
+            triangle_gp.normalArray = []; //triangle normal array
             triangle_gp.indexArray = []; 
-            triangle_gp.diffuseArray = [];
-            triangle_gp.ambientArray = [];
-            triangle_gp.specularArray = [];
-            triangle_gp.nArray = [];
-            triangle_gp.normalArray = [];
+            triangle_gp.diffuseArray = []; //triangle diffuse array
+            triangle_gp.ambientArray = []; //triangle ambient array
+            triangle_gp.specularArray = []; //triangle specular array
+            triangle_gp.nArray = []; //triangle n array
 
+            //calculate ellipsoid radius
             var radius1 = inputEllipsoid[whichSet]["a"];
             var radius2 = inputEllipsoid[whichSet]["b"];
             var radius3 = inputEllipsoid[whichSet]["c"];
 
+            //calculate ellipsoid center
             var center_x = inputEllipsoid[whichSet]["x"];
             var center_y = inputEllipsoid[whichSet]["y"];
             var center_z = inputEllipsoid[whichSet]["z"];
@@ -402,7 +397,6 @@ function loadEllipsoids() {
             offset = vtxBufferSize; // update vertex offset
 
             for (var lat = 0; lat <= latitude_length; lat++) {
-
                 var theta = lat * Math.PI / latitude_length;
                 var sin_Theta_val = Math.sin(theta);
                 var cos_Theta_val = Math.cos(theta);
@@ -418,34 +412,30 @@ function loadEllipsoids() {
 
                     //push ambient color into array
                     var ambi_col = inputEllipsoid[whichSet].ambient;
-                    if(mySelection-final_tri_no == whichSet){
-                        triangle_gp.ambientArray.push(chooseColor(ambi_col[0]+ambi_weight), chooseColor(ambi_col[1]+ambi_weight), 
+                    if(mySelection-final_tri_no == whichSet)
+                        triangle_gp.ambientArray.push(chooseColor(ambi_col[0]+ambi_weight), 
+                            chooseColor(ambi_col[1]+ambi_weight), 
                             chooseColor(ambi_col[2] + ambi_weight), 1.0);
-                    }else{
+                    else
                         triangle_gp.ambientArray.push(ambi_col[0], ambi_col[1], ambi_col[2], 1.0);
-                    }
 
                     //push diffuse color into array
                     var diff_col = inputEllipsoid[whichSet].diffuse;
                     if(mySelection-final_tri_no == whichSet)
-                    {
                         triangle_gp.diffuseArray.push(chooseColor(diff_col[0]+diff_weight), 
                             chooseColor(diff_col[1]+diff_weight), 
                             chooseColor(diff_col[2]+diff_weight), 1.0);
-                    }
-                    else{
+                    else
                         triangle_gp.diffuseArray.push(diff_col[0], diff_col[1], diff_col[2], 1.0);
-                    }
 
                     //push specular color into array
                     var spec_col = inputEllipsoid[whichSet].specular;
-                    if(mySelection - final_tri_no == whichSet){
+                    if(mySelection - final_tri_no == whichSet)
                         triangle_gp.specularArray.push(chooseColor(spec_col[0]+ spec_weight), 
                             chooseColor(spec_col[1]+ spec_weight), 
                             chooseColor(spec_col[2]+ spec_weight), 1.0);
-                    }else{
+                    else
                         triangle_gp.specularArray.push(spec_col[0], spec_col[1], spec_col[2], 1.0);
-                    }
 
                     //push n value into array 
                     if(mySelection - final_tri_no == whichSet){
@@ -457,44 +447,41 @@ function loadEllipsoids() {
                     //push normal into array
                     triangle_gp.normalArray.push(center_x+x, center_y+y, center_z+z, 1.0);
 
+                    //scale ellipsoid 
                     if(myEllipsoid==whichSet && ellipsoidSelected==1)
-                    {
                         triangle_gp.coordArray.push(center_x + radius1 * x*1.2,
                             center_y + radius2 * y*1.2,
                             center_z + radius3 * z*1.2);
-                    }
                     else
-                    {
                         triangle_gp.coordArray.push(center_x + radius1 * x, 
                         center_y + radius2 * y,
                         center_z + radius3 * z);
-                    }
-                    vertexCoordCount++;
+
                     //increase vertex count
+                    vertexCoordCount++;
                 }
             }
 
-            //push triangle vertices 
-            // for (var lat = 0; lat < latitude_length; lat++) {
-            //     for (var long_no = 0; long_no < longitude_length; long_no++, triangleSet.triBufferSize += 6) {
-            //         var first_tri = (lat * (longitude_length + 1)) + long_no;
-            //         var second_tri = first_tri + longitude_length + 1;
-            //         triangleSet.indexArray.push(first_tri + offset, second_tri + offset, first_tri + 1 + offset);
-            //         triangleSet.indexArray.push(second_tri + offset, second_tri + 1 + offset, first_tri + 1 + offset);
-                    
-            //     }
-            // }
-
-            for(let i = 0, up = 0, down = longitude_length + 1; i < latitude_length; i++, up = down, down += longitude_length + 1) {
-                for(let left = 0, right = 1; left < longitude_length; left++, right++, triangle_gp.triBufferSize += 6) {
-                    triangle_gp.indexArray.push(up + left, down + left, up + right);
-                    triangle_gp.indexArray.push(down + left, down + right, up + right);
+            //push vertices in triangle 
+            var first=0;
+            var second=longitude_length+1;
+            for(var lat=0; lat<latitude_length; lat++)
+            {
+                var offset_val =1;
+                for(var longt=0; longt<longitude_length; longt++)
+                {   
+                    triangle_gp.indexArray.push(first + longt, second + longt, first + offset_val);
+                    triangle_gp.indexArray.push(second + longt, second + offset_val, first + offset_val);
+                    offset_val++;
+                    triangle_gp.triBufferSize += 6;
                 }
+                first=second;
+                second += longitude_length + 1;
             }
-            //increase vertex buffer count
-            vtxBufferSize = vtxBufferSize + vertexCoordCount;        
+
+        //increase vertex size
+        vtxBufferSize = vtxBufferSize + vertexCoordCount;        
         
-
         triangle_gp.normalValueBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, triangle_gp.normalValueBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_gp.normalArray), gl.STATIC_DRAW);
@@ -518,24 +505,15 @@ function loadEllipsoids() {
         triangle_gp.vertexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, triangle_gp.vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_gp.coordArray), gl.STATIC_DRAW);
-        // ellipsoid_vertexposition_buffer.itemSize = 3;
-        // ellipsoid_vertexposition_buffer.numItems = vertexCoord.length / 3;
 
         triangle_gp.triangleBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangle_gp.triangleBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(triangle_gp.indexArray), gl.STATIC_DRAW);
-       // ellipsoid_triangleindex_buffer.itemSize = 1;
-       // .numItems = triangleindexArray.length;
 
-        triangle_gp.id = complete_set.list.length;
-
-        //if istriangle is 2 then the figure is ellipsoid
-        triangle_gp.istriangle =2;
+        //push all vertices in complete set
         // console.log("complete_set length:"+ complete_set.list.length);
         complete_set.list.push(triangle_gp);
         }
-        // console.log("final complete_set length:"+ complete_set.list.length);
-
     }
 }
 
@@ -718,19 +696,8 @@ function renderTriangles() {
       //for(let i=complete_set.list.length-1; i>=complete_set.list.length-(final_tri_no + final_ellip_no); i--){
                     // console.log("@@@@@@@@@@@@@@@@@@ mySelection ********: "+ mySelection);
 
-        // if(i==mySelection)
-        // {
-        //     //mat4.multiply(modelMatrix, modelMatrix, myMatrix);
-        //     //mat4.rotate(modelMatrix, myMatrix, -0.08, [1, 0, 0]);
-        //     var scaleMatrix = mat4.create();
-        //     mat4.identity(scaleMatrix);
-        //     mat4.scale(scaleMatrix, scaleMatrix, [1.2, 1.2, 1.2]);
-        //     gl.uniformMatrix4fv(uniformmMatrix, false, scaleMatrix);
-
-        // }
-        // else{
-        if(mySelection==i)
-        {
+        //set matrices based on selection
+        if(mySelection==i){
             var newMatrix = mat4.create();
             mat4.identity(newMatrix);
             mat4.multiply(newMatrix, newMatrix, translateMatrix);
@@ -743,7 +710,7 @@ function renderTriangles() {
             gl.uniform1i(uniformBlinn, 1);
             gl.uniformMatrix4fv(uniformmMatrix, false, modelMatrix);
     }
-    //}
+    
     /******************** for rendering triangles *****************/
     // vertex buffer: activate and feed into vertex shader
     gl.bindBuffer(gl.ARRAY_BUFFER,complete_set.list[i].vertexBuffer); // activate
@@ -812,28 +779,7 @@ function renderTriangles() {
 
 } // end render triangles
 
-//function to initialize view and projection matrices
-// function initMatrices(){
-//     //view matrix
-//     /*Determined by:
-//     1. The eye, or the position of the viewer;
-//     2. The center, or the point where we the camera aims;
-//     3. The up, which defines the direction of the up for the viewer.
-//     */
-    
-//     //model matrix
-
-//     //var viewMatrix = mat4.create();
-//     var eye = new vec3.fromValues(Eye[0],Eye[1],Eye[2]);
-//    // console.log("lookat: " + LookAt[0]);
-//     //11111 doubt verify center position
-//     var center = new vec3.fromValues(Eye[0]+LookAt[0], Eye[1]+LookAt[1], Eye[2]+LookAt[2]);
-//     mat4.lookAt(viewMatrix, eye, center, ViewUp);
-
-//     //doubt 11111 perspective matrix
-//     mat4.perspective(perspMatrix, Math.PI/2, 1, 0.1, 100.0);
-// }
-
+//reset color weight
 function reset_color_weight()
 {
     ambi_weight =0;
@@ -845,9 +791,6 @@ function reset_color_weight()
 function handleKeyDown()
 {
     keyPressed[event.keyCode] = true;
-    //console.log("**** key: ****" + event.key + "event.keyCode" + event.keyCode);
-
-    //Doubt 1111 verify rotation direction
     switch(event.key){
         case "a":
             console.log("translate view left along X axis");
@@ -902,9 +845,8 @@ function handleKeyDown()
 
         case "ArrowLeft":
             //select only triangles
+            console.log("select/toggle triangle set");
             mySelection = (mySelection + 1)%num_triangle;
-            //mySelection =1;
-            //loadTriangles();
             complete_set.list = [];
             triangleSelected=1;
             ellipsoidSelected=-1;
@@ -915,18 +857,12 @@ function handleKeyDown()
             return;
 
         case "ArrowRight":
-           // console.log("left arrow is selected");
-           // triangleSelected = (triangleSelected + 1)%num_triangle;
-           // mySelection = (mySelection + 1)%num_triangle;
-            // mySelection =3;
-           // mat4.translate(myMatrix, myMatrix, [-0.1, 0, 0]);
-           //select only triangles
+            //select only triangles
+            console.log("select/toggle triangle set");
             if(mySelection>0)
                 mySelection = mySelection-1;
             else
                 mySelection = num_triangle-1;
-            //mat4.scale(myMatrix, myMatrix, [1.2, 1.2,1.2]);
-            //loadTriangles();
             complete_set.list = [];
             triangleSelected =1;
             ellipsoidSelected=-1;
@@ -938,6 +874,7 @@ function handleKeyDown()
 
         case "ArrowUp":
             //select only ellipsoid
+            console.log("select/toggle ellipsoid set");
             myEllipsoid = ( myEllipsoid + 1)% num_ellipsoid;
             mySelection = myEllipsoid + num_triangle;
             complete_set.list = [];
@@ -950,9 +887,9 @@ function handleKeyDown()
             return;
 
         case "ArrowDown":
-            //
+            //select only ellipsoid
+            console.log("select/toggle ellipsoid set");
             myEllipsoid = (myEllipsoid + num_ellipsoid - 1)%num_ellipsoid;
-            //myEllipsoid = ( myEllipsoid + 1)% num_ellipsoid;
             mySelection = myEllipsoid + num_triangle;
             complete_set.list = [];
             triangleSelected =-1;
@@ -964,6 +901,7 @@ function handleKeyDown()
             return;
 
         case " ":
+            console.log("deselect all selections");
             myEllipsoid =-1;
             mySelection =-1;
             ellipsoidSelected=-1;
@@ -975,18 +913,20 @@ function handleKeyDown()
             renderTriangles();
             return;
     }
+    //apply action on already selected triangle/ellipsoid
     if(mySelection>=0)
     {
         switch(event.key){
 
             //PART6: CHANGE LIGHTING ON A MODEL
             case "b":
+                console.log("toggle between phong and blinn phong");
                 is_blinn_phong = (is_blinn_phong+1)%2;
-                console.log("blinn phong");
                 renderTriangles();
                 return;
 
             case "n":
+                console.log("increase n value");
                 increase_n=1;
                 increase_ambient =0;
                 increase_diffuse=0;
@@ -998,10 +938,10 @@ function handleKeyDown()
                 loadTriangles();
                 loadEllipsoids();
                 renderTriangles();
-                console.log("******** n selected *****");
                 return;
 
             case "1":
+                console.log("increase ambient color");
                 increase_ambient =1;
                 increase_diffuse=0;
                 increase_spec =0;
@@ -1016,6 +956,7 @@ function handleKeyDown()
                 return;
 
             case "2":
+                console.log("increase diffuse color");
                 increase_diffuse=1;
                 increase_ambient =0;
                 increase_spec =0;
@@ -1030,6 +971,7 @@ function handleKeyDown()
                 return;
 
             case "3":
+                console.log("increase specular color");
                 increase_diffuse=0;
                 increase_ambient =0;
                 increase_spec =1;
@@ -1105,11 +1047,6 @@ function handleKeyDown()
                 mat4.rotate(rotateMatrix, rotateMatrix, -0.04, [0, 0, 1]);
                 renderTriangles();
                 return;
-
-
-
-
-
         }
     }
 }
