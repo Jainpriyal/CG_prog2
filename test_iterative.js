@@ -86,6 +86,10 @@ var final_ellip_no =0;
 var complete_set = {};
 complete_set.selectId = -1;
 complete_set.list = [];
+//default value is blinn phong, 
+//if it is 0 then use phong
+var is_blinn_phong =1;
+var uniformBlinn;
 
 
 // ASSIGNMENT HELPER FUNCTIONS
@@ -541,21 +545,37 @@ function setupShaders() {
         varying float finalNVal;
         varying vec4 finalvertexPosition;
 
+        uniform int selectBlinnPhong;
+
         void main(void) {
 
             vec4 l = normalize(finalLightLoc - finalvertexPosition);
             vec4 V = normalize(finalEyeLoc - finalvertexPosition);
             vec4 N = normalize(finalNormalVal);
-            vec4 H = normalize(finalLightLoc - finalvertexPosition);
 
             float NdotL = max(0.0, dot(N, l));
-            float NdotH = max(0.0, dot(N, H));
             vec4 ambientpart = finalLightCol*finalAmbientColor;
-            vec4 diffusepart = finalDiffuseColor*NdotL;
-            vec4 specularpart = finalSpecularColor*pow(NdotH, finalNVal);
-            vec4 finalColor = ambientpart + diffusepart + specularpart;
+            vec4 diffusepart = finalDiffuseColor*finalLightCol*NdotL;
 
-            gl_FragColor = finalColor; // all fragments are white
+            //blinn phong is selected
+            //Ka*La + Kd*Ld*(N•L) + Ks*Ls*(N•H)n = color
+            if(selectBlinnPhong==1){
+                vec4 H = normalize(finalLightLoc + finalEyeLoc - finalvertexPosition);
+                float NdotH = max(0.0, dot(N, H));
+                vec4 specularpart = finalSpecularColor*finalLightCol*pow(NdotH, finalNVal);
+                vec4 finalColor = ambientpart + diffusepart + specularpart;
+                gl_FragColor = finalColor; // all fragments are white
+            }
+
+            //Phong is selected
+            //Ka*La + Kd*Ld*(N•L) + Ks*Ls*(R•V)n
+            else{
+                vec4 R = normalize(2.0 * NdotL * (N-l));
+                float RdotV = max(0.0, dot(R,V));
+                vec4 specularpart = finalSpecularColor*finalLightCol*pow(RdotV, finalNVal);
+                vec4 finalColor = ambientpart + diffusepart + specularpart;
+                gl_FragColor = finalColor; // all fragments are white
+            }
         }
     `;
     
@@ -625,6 +645,8 @@ function setupShaders() {
                 uniformvMatrix = gl.getUniformLocation(shaderProgram, "uniformViewMatrix");
                 uniformpMatrix = gl.getUniformLocation(shaderProgram, "uniformPerspMatrix");
                 uniformmMatrix = gl.getUniformLocation(shaderProgram, "uniformModelMatrix");
+
+                uniformBlinn = gl.getUniformLocation(shaderProgram, "selectBlinnPhong");
 
                 //get eye location
                 uniformEyeLoc = gl.getUniformLocation(shaderProgram, "finalEyeLoc");
@@ -703,9 +725,11 @@ function renderTriangles() {
             mat4.multiply(newMatrix, newMatrix, rotateMatrix);
             mat4.multiply(newMatrix, modelMatrix, newMatrix);
             gl.uniformMatrix4fv(uniformmMatrix, false, newMatrix);
+            gl.uniform1i(uniformBlinn, is_blinn_phong);
         }
         else{
-        gl.uniformMatrix4fv(uniformmMatrix, false, modelMatrix);
+            gl.uniform1i(uniformBlinn, 1);
+            gl.uniformMatrix4fv(uniformmMatrix, false, modelMatrix);
     }
     //}
     /******************** for rendering triangles *****************/
@@ -803,6 +827,7 @@ function reset_color_weight()
     ambi_weight =0;
     diff_weight =0;
     spec_weight=0;
+    n_weight =0;
 }
 
 function handleKeyDown()
@@ -943,6 +968,12 @@ function handleKeyDown()
         switch(event.key){
 
             //PART6: CHANGE LIGHTING ON A MODEL
+            case "b":
+                is_blinn_phong = (is_blinn_phong+1)%2;
+                console.log("blinn phong");
+                renderTriangles();
+                return;
+
             case "n":
                 increase_n=1;
                 increase_ambient =0;
