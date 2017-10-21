@@ -42,11 +42,79 @@
     <input type="checkbox" name="use_light" value="0" id="use_light">
     <br>
     </p>
-
     <p>
     <br>
     <input type="button" id="Submitbtn" name="Submit" value="Submit" onclick="main();">
     <br>
+    </p>
+
+    <p>
+    <label><b>Description</b></label>
+    
+
+    <table style="width:100%">
+  <tr>
+    <th>interactively change view</th>
+    <th>Interactively select a model</th> 
+    <th>Interactively change lighting on a model</th>
+    <th>Interactively transform models</th>
+  </tr>
+  <tr>
+    <td>
+    <br>
+    <b>a and d</b> — translate view left and right along view X
+    <br>
+    <b>w and s</b>— translate view forward and backward along view Z
+    <br>
+    <b>q and e</b>— translate view up and down along view Y
+    <br>
+    <b>A and D</b>— rotate view left and right around view Y (yaw)
+    <br>
+    <b>W and S</b>— rotate view forward and backward around view X (pitch)
+    </td>
+
+    <td>
+    <br>  
+    <b>left and right ArrowKey </b>— select and highlight the next/previous triangle set (previous off)
+    <br>
+    <b>up and down ArrowKey </b>— select and highlight the next/previous ellipsoid (previous off)
+    <br>
+    <b>space </b>— deselect and turn off highlight
+    </td> 
+
+    <td>
+    <br>
+    <b> b</b> — toggle between Phong and Blinn-Phong lighting
+    <br>
+    <b> n </b> — increment the specular integer exponent by 1 (wrap from 20 to 0)
+    <br>
+     <b>1 </b>— increase the ambient weight by 0.1 (wrap from 1 to 0)
+    <br>
+    <b>2 </b>— increase the diffuse weight by 0.1 (wrap from 1 to 0)
+    <br>
+    <b> 3</b> — increase the specular weight by 0.1 (wrap from 1 to 0)
+    </td>
+
+    <td>
+    <br>
+    <b>k and ; </b>— translate selection left and right along view X
+    <br>
+    <b>o and l </b>— translate selection forward and backward along view Z
+    <br>
+    <b>i and p </b>— translate selection up and down along view Y
+    <br>
+    <b>K and : </b>— rotate selection left and right around view Y (yaw)
+    <br>
+    <b>O and L </b>— rotate selection forward and backward around view X (pitch)
+    <br>
+    <b>I and P </b>— rotate selection clockwise and counterclockwise around view Z (roll)
+    </td>
+
+  </tr>
+</table>
+
+    
+
     </p>
 
   </body>
